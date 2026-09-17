@@ -1,4 +1,4 @@
-import { test, describe, beforeEach, mock } from 'node:test'
+import { test, describe, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { setActivePinia, createPinia } from 'pinia'
 import { supabase } from '../src/composables/useSupabase.js'
@@ -18,6 +18,9 @@ describe('Pinia Stores Tests', () => {
       assert.deepEqual(store.bed_types, [])
       assert.deepEqual(store.room_types, [])
       assert.deepEqual(store.rooms, [])
+      assert.deepEqual(store.meal_plans, [])
+      assert.deepEqual(store.extra_charges, [])
+      assert.deepEqual(store.payment_methods, [])
       assert.equal(store.loading, false)
       assert.equal(store.error, null)
     })
@@ -103,14 +106,85 @@ describe('Pinia Stores Tests', () => {
       assert.deepEqual(store.room_types, [roomType])
     })
 
-    test('rooms CRUD', async () => {
+    test('rooms CRUD and maintenance status update', async () => {
       const store = useRoomStore()
-      const room = { id: 'r1', room_number: '101' }
+      const room = { id: 'r1', room_number: '101', maintenance_status: 'operational' }
 
       // Fetch
       supabase.from = () => ({ select: () => Promise.resolve({ data: [room], error: null }) })
       await store.fetchRooms()
       assert.deepEqual(store.rooms, [room])
+
+      // Update maintenance status
+      const updatedRoom = { id: 'r1', room_number: '101', maintenance_status: 'under_maintenance' }
+      supabase.from = () => ({
+        update: () => ({
+          eq: () => ({
+            select: () => Promise.resolve({ data: [updatedRoom], error: null })
+          })
+        })
+      })
+      await store.updateRoom('r1', { maintenance_status: 'under_maintenance' })
+      assert.equal(store.rooms[0].maintenance_status, 'under_maintenance')
+    })
+
+    test('meal_plans CRUD', async () => {
+      const store = useRoomStore()
+      const plan = { id: 'mp1', name: 'Bed & Breakfast', code: 'BB' }
+
+      supabase.from = () => ({ select: () => Promise.resolve({ data: [plan], error: null }) })
+      await store.fetchMealPlans()
+      assert.deepEqual(store.meal_plans, [plan])
+
+      supabase.from = () => ({ delete: () => ({ eq: () => Promise.resolve({ error: null }) }) })
+      await store.deleteMealPlan('mp1')
+      assert.deepEqual(store.meal_plans, [])
+    })
+
+    test('extra_charges CRUD', async () => {
+      const store = useRoomStore()
+      const charge = { id: 'ec1', name: 'Spa Pass', price: 50 }
+
+      supabase.from = () => ({ select: () => Promise.resolve({ data: [charge], error: null }) })
+      await store.fetchExtraCharges()
+      assert.deepEqual(store.extra_charges, [charge])
+    })
+
+    test('tax_settings update', async () => {
+      const store = useRoomStore()
+      const newSettings = { sales_tax: 12, city_tax: 4, service_charge: 6, tax_inclusive: true }
+
+      supabase.from = () => ({
+        upsert: () => ({
+          select: () => Promise.resolve({ data: [newSettings], error: null })
+        })
+      })
+      await store.updateTaxSettings(newSettings)
+      assert.equal(store.tax_settings.sales_tax, 12)
+      assert.equal(store.tax_settings.tax_inclusive, true)
+    })
+
+    test('payment_methods CRUD', async () => {
+      const store = useRoomStore()
+      const pm = { id: 'pm1', name: 'Credit Card', fee_percentage: 2.5 }
+
+      supabase.from = () => ({ select: () => Promise.resolve({ data: [pm], error: null }) })
+      await store.fetchPaymentMethods()
+      assert.deepEqual(store.payment_methods, [pm])
+    })
+
+    test('invoice_settings update', async () => {
+      const store = useRoomStore()
+      const newInvoice = { company_name: 'Sunset Resort', invoice_prefix: 'SR-' }
+
+      supabase.from = () => ({
+        upsert: () => ({
+          select: () => Promise.resolve({ data: [{ ...store.invoice_settings, ...newInvoice }], error: null })
+        })
+      })
+      await store.updateInvoiceSettings(newInvoice)
+      assert.equal(store.invoice_settings.company_name, 'Sunset Resort')
+      assert.equal(store.invoice_settings.invoice_prefix, 'SR-')
     })
   })
 

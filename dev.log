@@ -1,0 +1,11 @@
+
+> hotel-pms-vue@0.0.0 dev
+> vite
+
+
+  VITE v6.4.3  ready in 412 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+8:38:00 PM [vite] (client) hmr update /src/views/SettingsView.vue, /src/assets/main.css
+8:38:56 PM [vite] (client) hmr update /src/assets/main.css, /src/views/SettingsView.vue
