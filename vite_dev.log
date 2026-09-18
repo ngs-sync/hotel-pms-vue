@@ -1,14 +1,9 @@
 
 > hotel-pms-vue@0.0.0 dev
-> vite --port 3000
+> vite
 
 
-  VITE v6.4.3  ready in 425 ms
+  VITE v6.4.3  ready in 392 ms
 
-  ➜  Local:   http://localhost:3000/
+  ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-3:23:12 AM [vite] (client) hmr update /src/assets/main.css, /src/components/frontdesk/TapeChart.vue, /src/components/frontdesk/FrontdeskDashboard.vue
-3:23:16 AM [vite] (client) hmr update /src/components/frontdesk/FrontdeskDashboard.vue, /src/assets/main.css
-3:24:57 AM [vite] (client) hmr update /src/assets/main.css, /src/components/frontdesk/TapeChart.vue, /src/components/frontdesk/FrontdeskDashboard.vue
-3:25:54 AM [vite] (client) hmr update /src/assets/main.css, /src/components/frontdesk/TapeChart.vue, /src/components/frontdesk/FrontdeskDashboard.vue
-3:27:13 AM [vite] (client) hmr update /src/assets/main.css, /src/components/frontdesk/TapeChart.vue, /src/components/frontdesk/FrontdeskDashboard.vue
