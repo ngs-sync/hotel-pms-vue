@@ -106,6 +106,64 @@ describe('Pinia Stores Tests', () => {
       assert.deepEqual(store.room_types, [roomType])
     })
 
+    test('createRoomType sanitizes payload and attaches property_id', async () => {
+      const store = useRoomStore()
+      let insertedPayload = null
+      let fetchCalled = false
+
+      supabase.from = (table) => {
+        if (table === 'room_types') {
+          return {
+            insert: (payload) => {
+              insertedPayload = payload
+              return {
+                select: () => Promise.resolve({ data: [{ id: 'rt_new', ...payload }], error: null })
+              }
+            },
+            select: (cols) => {
+              fetchCalled = true
+              return Promise.resolve({ data: [{ id: 'rt_new', name: 'Deluxe Suite' }], error: null })
+            }
+          }
+        }
+      }
+
+      const validBedTypeId = '123e4567-e89b-12d3-a456-426614174000'
+      const formData = {
+        name: '   Deluxe Suite   ',
+        base_price: '250.50',
+        bed_type_id: `  ${validBedTypeId}  `
+      }
+
+      await store.createRoomType(formData)
+
+      assert.equal(insertedPayload.property_id, store.activePropertyId)
+      assert.equal(insertedPayload.name, 'Deluxe Suite')
+      assert.equal(insertedPayload.base_price, 250.5)
+      assert.equal(insertedPayload.bed_type_id, validBedTypeId)
+      assert.equal(fetchCalled, true)
+    })
+
+    test('createRoomType throws error if bed_type_id is invalid/missing', async () => {
+      const store = useRoomStore()
+
+      // Invalid bed_type_id
+      await assert.rejects(
+        async () => {
+          await store.createRoomType({ name: 'Standard', base_price: 100, bed_type_id: 'invalid-uuid' })
+        },
+        /Valid Bed Type selection \(UUID\) is required/
+      )
+
+      // Missing bed_type_id
+      await assert.rejects(
+        async () => {
+          await store.createRoomType({ name: 'Standard', base_price: 100, bed_type_id: '' })
+        },
+        /Valid Bed Type selection \(UUID\) is required/
+      )
+    })
+
     test('rooms CRUD and maintenance status update', async () => {
       const store = useRoomStore()
       const room = { id: 'r1', room_number: '101', maintenance_status: 'operational' }

@@ -5,6 +5,7 @@ import { supabase } from '../composables/useSupabase.js'
 const isPlaceholder = Boolean(import.meta.env?.VITE_SUPABASE_URL?.includes('placeholder'))
 
 export const useRoomStore = defineStore('room', () => {
+  const activePropertyId = ref('00000000-0000-0000-0000-000000000001')
   const properties = ref([])
   const bed_types = ref([])
   const room_types = ref([])
@@ -272,7 +273,9 @@ export const useRoomStore = defineStore('room', () => {
     error.value = null
     try {
       if (isPlaceholder) throw new Error('Placeholder Supabase Endpoint')
-      const { data, error: err } = await supabase.from('room_types').select('*')
+      const { data, error: err } = await supabase
+        .from('room_types')
+        .select('id, property_id, bed_type_id, name, base_price, bed_types(name)')
       if (err) throw err
       if (data && data.length > 0) {
         room_types.value = data
@@ -289,20 +292,59 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function createRoomType(roomTypeData) {
+  async function createRoomType(formData) {
     loading.value = true
     error.value = null
     try {
-      if (isPlaceholder) throw new Error('Placeholder Supabase Endpoint')
-      const { data, error: err } = await supabase.from('room_types').insert(roomTypeData).select()
-      if (err) throw err
-      if (data && data.length > 0) {
-        room_types.value.push(data[0])
-        return data
+      // Validate bed_type_id (must be non-empty valid UUID string)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      const bedTypeId = formData.bed_type_id ? String(formData.bed_type_id).trim() : ''
+      if (!bedTypeId || !uuidRegex.test(bedTypeId)) {
+        throw new Error('Valid Bed Type selection (UUID) is required.')
       }
+
+      const trimmedName = formData.name ? String(formData.name).trim() : ''
+      if (!trimmedName) {
+        throw new Error('Room Type name is required.')
+      }
+
+      const parsedBasePrice = typeof formData.base_price === 'number'
+        ? formData.base_price
+        : parseFloat(formData.base_price)
+
+      if (isNaN(parsedBasePrice)) {
+        throw new Error('Base Price must be a valid number.')
+      }
+
+      const sanitizedPayload = {
+        ...formData,
+        property_id: activePropertyId.value,
+        bed_type_id: bedTypeId,
+        name: trimmedName,
+        base_price: parsedBasePrice
+      }
+
+      if (isPlaceholder) throw new Error('Placeholder Supabase Endpoint')
+      const { data, error: err } = await supabase.from('room_types').insert(sanitizedPayload).select()
+      if (err) throw err
+
+      await fetchRoomTypes()
+      return data
     } catch (err) {
       error.value = err.message
-      const newItem = { id: 'rt_' + Date.now(), ...roomTypeData }
+      const bedTypeId = formData.bed_type_id ? String(formData.bed_type_id).trim() : ''
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!bedTypeId || !uuidRegex.test(bedTypeId)) {
+        throw err
+      }
+      const newItem = {
+        id: 'rt_' + Date.now(),
+        ...formData,
+        property_id: activePropertyId.value,
+        bed_type_id: bedTypeId,
+        name: formData.name ? String(formData.name).trim() : '',
+        base_price: typeof formData.base_price === 'number' ? formData.base_price : parseFloat(formData.base_price) || 0
+      }
       room_types.value.push(newItem)
       return [newItem]
     } finally {
@@ -775,6 +817,7 @@ export const useRoomStore = defineStore('room', () => {
     extra_charges,
     tax_settings,
     payment_methods,
+    activePropertyId,
     invoice_settings,
     loading,
     error,
