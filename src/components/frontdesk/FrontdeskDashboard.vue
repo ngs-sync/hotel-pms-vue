@@ -194,10 +194,16 @@
                     Check-In
                   </button>
                   <button
-                    @click="selectReservation(res)"
+                    @click="openFolioModal(res)"
+                    class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg text-xs transition border border-blue-200"
+                  >
+                    Folio
+                  </button>
+                  <button
+                    @click="editReservation(res)"
                     class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg text-xs transition"
                   >
-                    View
+                    Edit
                   </button>
                 </td>
               </tr>
@@ -272,10 +278,16 @@
                     Check-Out
                   </button>
                   <button
-                    @click="selectReservation(res)"
+                    @click="openFolioModal(res)"
+                    class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg text-xs transition border border-blue-200"
+                  >
+                    Folio
+                  </button>
+                  <button
+                    @click="editReservation(res)"
                     class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg text-xs transition"
                   >
-                    Details
+                    Edit
                   </button>
                 </td>
               </tr>
@@ -355,10 +367,16 @@
                     Express Check-Out
                   </button>
                   <button
-                    @click="selectReservation(res)"
+                    @click="openFolioModal(res)"
+                    class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg text-xs transition border border-blue-200"
+                  >
+                    Folio
+                  </button>
+                  <button
+                    @click="editReservation(res)"
                     class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg text-xs transition"
                   >
-                    Details
+                    Edit
                   </button>
                 </td>
               </tr>
@@ -548,59 +566,18 @@
       </div>
     </div>
 
-    <!-- MODAL: Reservation Details Modal -->
-    <div v-if="selectedRes" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-100">
-        <div class="p-5 bg-gray-900 text-white flex items-center justify-between">
-          <div>
-            <h3 class="text-lg font-bold">{{ selectedRes.guest_name }}</h3>
-            <p class="text-xs text-gray-400">Reservation Details & Summary</p>
-          </div>
-          <button @click="selectedRes = null" class="p-1 text-gray-400 hover:text-white transition">
-            <PhX class="w-6 h-6" />
-          </button>
-        </div>
+    <!-- Standalone Modal Components -->
+    <ReservationModal
+      v-model="showReservationModal"
+      :reservation="modalReservation"
+      @saved="handleReservationSaved"
+    />
 
-        <div class="p-6 space-y-4 text-sm text-gray-700">
-          <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-            <div>
-              <span class="text-xs text-gray-500 font-medium block">Room Number</span>
-              <span class="font-bold text-gray-900">Room {{ selectedRes.room_number || getRoomNumber(selectedRes.room_id) }}</span>
-            </div>
-            <div>
-              <span class="text-xs text-gray-500 font-medium block">Status</span>
-              <span class="font-bold uppercase text-blue-600">{{ selectedRes.status }}</span>
-            </div>
-            <div>
-              <span class="text-xs text-gray-500 font-medium block">Check-In</span>
-              <span class="font-medium text-gray-900">{{ selectedRes.check_in_date }}</span>
-            </div>
-            <div>
-              <span class="text-xs text-gray-500 font-medium block">Check-Out</span>
-              <span class="font-medium text-gray-900">{{ selectedRes.check_out_date }}</span>
-            </div>
-            <div>
-              <span class="text-xs text-gray-500 font-medium block">Total Charge</span>
-              <span class="font-bold text-emerald-600">${{ Number(selectedRes.total_amount || 0).toFixed(2) }}</span>
-            </div>
-            <div>
-              <span class="text-xs text-gray-500 font-medium block">Paid</span>
-              <span class="font-bold text-gray-900">${{ Number(selectedRes.paid_amount || 0).toFixed(2) }}</span>
-            </div>
-          </div>
-
-          <div v-if="selectedRes.notes" class="bg-amber-50 p-3 rounded-lg border border-amber-200 text-xs text-amber-800">
-            <strong>Notes:</strong> {{ selectedRes.notes }}
-          </div>
-
-          <div class="flex justify-end pt-3">
-            <button @click="selectedRes = null" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-xs font-semibold">
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <FolioModal
+      v-model="showFolioModal"
+      :reservation="modalReservation"
+      @checkout="handleFolioCheckout"
+    />
   </div>
 </template>
 
@@ -608,6 +585,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoomStore } from '../../stores/useRoomStore.js'
 import { useReservationStore } from '../../stores/useReservationStore.js'
+import ReservationModal from '../modals/ReservationModal.vue'
+import FolioModal from '../modals/FolioModal.vue'
 import {
   PhUserCheck,
   PhBed,
@@ -621,6 +600,10 @@ import {
 
 const roomStore = useRoomStore()
 const reservationStore = useReservationStore()
+
+const showReservationModal = ref(false)
+const showFolioModal = ref(false)
+const modalReservation = ref(null)
 
 function getLocalDateStr(offsetDays = 0) {
   const d = new Date()
@@ -789,8 +772,22 @@ function getStayNights(res) {
   return Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)))
 }
 
-function selectReservation(res) {
-  selectedRes.value = res
+function editReservation(res) {
+  modalReservation.value = res
+  showReservationModal.value = true
+}
+
+function openFolioModal(res) {
+  modalReservation.value = res
+  showFolioModal.value = true
+}
+
+function handleReservationSaved() {
+  reservationStore.fetchReservations()
+}
+
+function handleFolioCheckout() {
+  reservationStore.fetchReservations()
 }
 
 function openCheckInModal(res) {
