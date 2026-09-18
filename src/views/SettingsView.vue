@@ -16,9 +16,21 @@
     </div>
 
     <!-- Notification / Toast Message -->
-    <div v-if="notificationMessage" class="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center justify-between">
+    <div
+      v-if="notificationMessage"
+      :class="[
+        isNotificationError ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800',
+        'p-4 rounded-lg border text-sm flex items-center justify-between'
+      ]"
+    >
       <span>{{ notificationMessage }}</span>
-      <button @click="notificationMessage = ''" class="text-emerald-600 hover:text-emerald-900 font-bold ml-4">&times;</button>
+      <button
+        @click="notificationMessage = ''"
+        :class="isNotificationError ? 'text-rose-600 hover:text-rose-900' : 'text-emerald-600 hover:text-emerald-900'"
+        class="font-bold ml-4"
+      >
+        &times;
+      </button>
     </div>
 
     <!-- Navigation Tabs -->
@@ -625,8 +637,8 @@
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">Bed Type</label>
-            <select v-model="roomTypeForm.bed_type_id" class="w-full border rounded-lg p-2 text-sm bg-white">
-              <option value="">Select Bed Type</option>
+            <select v-model="roomTypeForm.bed_type_id" required class="w-full border rounded-lg p-2 text-sm bg-white">
+              <option value="" disabled>Select Bed Type</option>
               <option v-for="bt in roomStore.bed_types" :key="bt.id" :value="bt.id">{{ bt.name }}</option>
             </select>
           </div>
@@ -877,6 +889,7 @@ const roomStore = useRoomStore()
 
 const activeTab = ref('room_bed_types')
 const notificationMessage = ref('')
+const isNotificationError = ref(false)
 const roomFilter = ref('all')
 
 const tabs = [
@@ -917,11 +930,12 @@ const paymentMethodForm = reactive({ name: '', fee_percentage: 0, is_default: fa
 const taxForm = reactive({ sales_tax: 10, city_tax: 3.5, service_charge: 5, tax_inclusive: false })
 const invoiceForm = reactive({ company_name: '', address: '', phone: '', email: '', tax_id: '', invoice_prefix: 'INV-', next_number: 1000, currency: 'USD', notes: '' })
 
-function notify(msg) {
+function notify(msg, isError = false) {
   notificationMessage.value = msg
+  isNotificationError.value = isError
   setTimeout(() => {
     if (notificationMessage.value === msg) notificationMessage.value = ''
-  }, 4000)
+  }, 5000)
 }
 
 onMounted(async () => {
@@ -976,20 +990,24 @@ function openRoomTypeModal(item = null) {
   if (item) {
     Object.assign(roomTypeForm, item)
   } else {
-    Object.assign(roomTypeForm, { code: '', name: '', base_price: 100, max_occupancy: 2, bed_type_id: roomStore.bed_types[0]?.id || '', description: '' })
+    Object.assign(roomTypeForm, { code: '', name: '', base_price: 100, max_occupancy: 2, bed_type_id: '', description: '' })
   }
   showRoomTypeModal.value = true
 }
 
 async function handleSaveRoomType() {
-  if (editingRoomType.value) {
-    await roomStore.updateRoomType(editingRoomType.value.id, { ...roomTypeForm })
-    notify('Room type updated successfully.')
-  } else {
-    await roomStore.createRoomType({ ...roomTypeForm })
-    notify('New room type created.')
+  try {
+    if (editingRoomType.value) {
+      await roomStore.updateRoomType(editingRoomType.value.id, { ...roomTypeForm })
+      notify('Room type updated successfully.')
+    } else {
+      await roomStore.createRoomType({ ...roomTypeForm })
+      notify('New room type created.')
+    }
+    showRoomTypeModal.value = false
+  } catch (err) {
+    notify(err.message || 'Failed to save room type.', true)
   }
-  showRoomTypeModal.value = false
 }
 
 async function handleDeleteRoomType(id) {
