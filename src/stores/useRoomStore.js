@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../composables/useSupabase.js'
 
-const isPlaceholder = !import.meta.env?.VITE_SUPABASE_URL || import.meta.env?.VITE_SUPABASE_URL.includes('placeholder')
+const isPlaceholder = Boolean(import.meta.env?.VITE_SUPABASE_URL?.includes('placeholder'))
 
 export const useRoomStore = defineStore('room', () => {
   const properties = ref([])
